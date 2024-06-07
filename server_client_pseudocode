@@ -1,0 +1,47 @@
+Server-Client Pseudocode
+
+
+Define constants:
+  MAX_REQUESTS - N
+
+
+Global Variables:
+  mutex: lock for shared resources
+  cond: condition variable for thread synchronization
+  semaphore: semaphore for limiting the number of concurrent requests
+
+
+Initialize:
+  Initialize mutex
+  Initialize cond
+  Initialize semaphore with MAX_REQUESTS
+
+
+Server:
+  While true:
+    Accept client request
+    Lock mutex
+    If request queue is full:
+      Wait on condition variable (cond)
+    Add request to queue
+    Signal condition variable (cond) to wake up waiting threads
+    Unlock mutex
+    Create a thread to handle the request
+
+
+
+Request Handler (Thread):
+  Lock mutex
+  Remove request from queue
+  Unlock mutex
+  Process request
+  Lock mutex
+  Signal condition variable (cond) if queue is not full
+  Unlock mutex
+
+
+Client:
+  Connect to server
+  Send request
+  Wait for response
+  Disconnect from server
