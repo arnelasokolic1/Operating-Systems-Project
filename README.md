@@ -1,6 +1,6 @@
 # Memory and Concurrency Project
 
-This repository contains the implementation and analysis of two major projects: Memory Mapping and Concurrency Management. These projects were developed as part of the coursework for IT 306.
+This repository contains the implementation and analysis of two major projects: Memory Mapping and Concurrency . These projects were developed as part of the coursework for IT 306 Operating Systems.
 
 ## Memory Mapping Project
 
