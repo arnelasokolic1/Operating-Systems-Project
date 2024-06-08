@@ -1,47 +1,61 @@
-Server-Client Pseudocode
+Pseudocode for Server-Client Concurrency
+
+Global Variables
+
+MAX_THREADS = 10  // Maximum number of threads that can be handled concurrently
+current_threads = 0  // Counter for the current number of active threads
+lock = new Lock()  // Lock for synchronizing access to shared variables
+condition = new Condition(lock)  // Condition variable for managing thread waits
 
 
-Define constants:
-  MAX_REQUESTS - N
+Thread Function: client_thread
 
+function client_thread():
+    lock.acquire()
+    if current_threads >= MAX_THREADS:
+        print("System is overloaded")
+        lock.release()
+        thread_exitFailure()
+        return
 
-Global Variables:
-  mutex: lock for shared resources
-  cond: condition variable for thread synchronization
-  semaphore: semaphore for limiting the number of concurrent requests
+    current_threads += 1
+    print("Thread arrived and is waiting for service")
+    while !service_available():  // Condition to check if the service is available
+        condition.wait()  // Wait for the service to become available
 
-
-Initialize:
-  Initialize mutex
-  Initialize cond
-  Initialize semaphore with MAX_REQUESTS
-
-
-Server:
-  While true:
-    Accept client request
-    Lock mutex
-    If request queue is full:
-      Wait on condition variable (cond)
-    Add request to queue
-    Signal condition variable (cond) to wake up waiting threads
-    Unlock mutex
-    Create a thread to handle the request
+    receive_service()  // Call the service function
+    print("Service received by thread")
+    current_threads -= 1
+    condition.signal()  // Notify other waiting threads
+    lock.release()
+    thread_exit()
 
 
 
-Request Handler (Thread):
-  Lock mutex
-  Remove request from queue
-  Unlock mutex
-  Process request
-  Lock mutex
-  Signal condition variable (cond) if queue is not full
-  Unlock mutex
+Helper Functions
+
+function service_available():
+    // Check if the service is available
+    // This should return True if the service can be received by the thread
+    // Return False if the service is currently busy
+    return !is_service_busy  // Replace with actual condition
+
+function receive_service():
+    // Code to receive the service
+    // Ensure this function is protected by the lock if it modifies shared resources
 
 
-Client:
-  Connect to server
-  Send request
-  Wait for response
-  Disconnect from server
+
+Main Function
+
+function main():
+    threads = []  // List to keep track of all threads
+    for i in range(NUM_CLIENTS):  // NUM_CLIENTS is the total number of clients to be served
+        t = create_thread(client_thread)
+        threads.append(t)
+
+    for t in threads:
+        t.join()  // Wait for all threads to complete
+
+
+        
