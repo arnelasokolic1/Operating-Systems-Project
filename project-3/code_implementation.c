@@ -1,117 +1,67 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <unistd.h>
-#define MAX_REQUESTS 5 // Maximum number of requests that can be handled concurrently
 
+#define N 3  // Maximum number of requests allowed in the system
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+int current_requests = 0;
 
-pthread_mutex_t mutex;
-pthread_cond_t cond;
-sem_t semaphore;
-int request_count = 0; // To track the number of active requests
-
-
-// Function to be called upon successful thread completion
-void thread_exitSuccess() {
-printf("Thread completed successfully.\n");
-pthread_exit(NULL);
-
-}
-
-
-// Function to be called upon thread failure
 void thread_exitFailure() {
-printf("Thread failed.\n");
-pthread_exit(NULL);
-
+    printf("Thread %ld exiting due to overload.\n", pthread_self());
+    pthread_exit(NULL);
 }
 
-// Placeholder function to simulate service reception
 void receiveService() {
-printf("Service received.\n");
-// Simulate service processing time
-sleep (2);
-
+    printf("Thread %ld receiving service.\n", pthread_self());
+    sleep(2);  // Simulate service time
 }
 
-// Initialize synchronization mechanisms
-void initialize() {
-pthread_mutex_init(&mutex, NULL);
-pthread_cond_init(&cond, NULL); sem_init(&semaphore, 0, MAX_REQUESTS);
-
+void thread_exitSuccess() {
+    printf("Thread %ld successfully finished.\n", pthread_self());
+    pthread_exit(NULL);
 }
 
-
-// Server function to accept and handle client requests
-void* server (void* arg) {
-     while (1) {
-       pthread_mutex_lock(&mutex);
-
-
-       // If request queue is full, wait for a signal
-       while (request_count >= MAX_REQUESTS) {
-       pthread_cond_wait(&cond, &mutex);
-    }
-
-
-       // Accept a new request
-        request_count++;
-        printf("Request received. Active requests: %d\n", request_count);
-
-
-        // Create a new thread to handle the request
-         pthread_t thread;
-         pthread_create(&thread, NULL, handle_request, NULL);
-         pthread_detach (thread);
-
-     }
-
-
-         pthread_mutex_unlock(&mutex);
-     return NULL;
-
-    }
-
-    // Request handler function (thread) 
-    void* handle_request(void* arg) {
+void* request_thread(void* arg) {
     pthread_mutex_lock(&mutex);
 
-       // If too many requests, exit with failure
-       if (request_count > MAX_REQUESTS){ 
+    if (current_requests >= N) {
         pthread_mutex_unlock(&mutex);
-        thread_exitFailure(); 
-        return NULL;
+        thread_exitFailure();
+    }
+
+    current_requests++;
+    printf("Thread %ld added to the system. Current requests: %d\n", pthread_self(), current_requests);
+
+    while (current_requests > 1) {
+        pthread_cond_wait(&cond, &mutex);
+    }
+
+    pthread_mutex_unlock(&mutex);
+
+    receiveService();
+
+    pthread_mutex_lock(&mutex);
+    current_requests--;
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&mutex);
+
+    thread_exitSuccess();
 }
 
-     // Proceed to receive service
-      receiveService();
+int main() {
+    pthread_t threads[10];  // Array to hold thread IDs
+    for (int i = 0; i < 10; i++) {
+        pthread_create(&threads[i], NULL, request_thread, NULL);
+        sleep(1);  // Simulate staggered arrival of requests
+    }
 
+    for (int i = 0; i < 10; i++) {
+        pthread_join(threads[i], NULL);
+    }
 
-     // Decrease the request count after service
-     request_count--;
-
-
-
-     // Signal waiting threads that a request has been processed 
-     pthread_cond_signal(&cond);
-
-
-     pthread_mutex_unlock(&mutex);
-
-
-     // Exit successfully 
-     hread_exitSuccess(); 
-     return NULL;
+    return 0;
 }
-int main() { 
-    initialize();
 
-     // Creating and starting the server thread 
-     pthread_t server_thread;
-     pthread_create(&server_thread, NULL, server, NULL);
-     pthread_join (server_thread, NULL);
-return 0;
-
-}
